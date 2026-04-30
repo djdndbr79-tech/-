@@ -164,10 +164,8 @@ jobs:
           curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar
           curl -L -o gradlew https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar?raw=true
           
-          # Создаём иконку (простая заглушка)
-          mkdir -p app/src/main/res/mipmap-hdpi
-          echo "ic_launcher placeholder" > app/src/main/res/mipmap-hdpi/ic_launcher.xml
-          
+          # Даём права на выполнение
+          chmod +x gradle/wrapper/gradle-wrapper.jar
           chmod +x gradlew
 
       - name: Build APK
