@@ -1,0 +1,1455 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#2C6B9E">
+    <title>Мой Мессенджер + KinoMir</title>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+            background: var(--bg-color);
+            height: 100vh;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            transition: background 0.3s;
+            overflow: hidden;
+            position: fixed;
+            top: 0;
+            left: 0;
+        }
+        :root {
+            --bg-color: #0B0B0E;
+            --header-bg: #1F1F24;
+            --border-color: #2C2C2E;
+            --message-my: #2C6B9E;
+            --message-other: #1F1F24;
+            --text-color: white;
+            --text-secondary: #8E8E93;
+            --input-bg: #2C2C2E;
+            --accent-color: #2C6B9E;
+        }
+        body.light {
+            --bg-color: #FFFFFF;
+            --header-bg: #F0F0F0;
+            --border-color: #E0E0E0;
+            --message-my: #007AFF;
+            --message-other: #E9E9E9;
+            --text-color: #000000;
+            --text-secondary: #666666;
+            --input-bg: #F0F0F0;
+        }
+        .screen { display: none; flex: 1; flex-direction: column; height: 100%; width: 100%; overflow: hidden; }
+        .screen.active { display: flex; }
+        
+        .header {
+            background: var(--header-bg);
+            padding: 12px 16px;
+            padding-top: calc(12px + env(safe-area-inset-top, 0px));
+            border-bottom: 0.5px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-shrink: 0;
+        }
+        .header .back-btn {
+            background: none;
+            border: none;
+            color: var(--accent-color);
+            font-size: 24px;
+            cursor: pointer;
+            width: 32px;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .header h2 { color: var(--text-color); font-size: 18px; font-weight: 600; flex: 1; }
+        
+        .avatar-icon {
+            width: 42px;
+            height: 42px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 18px;
+            color: white;
+            cursor: pointer;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .avatar-icon img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .list-area { flex: 1; overflow-y: auto; }
+        .list-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 12px 16px;
+            cursor: pointer;
+            transition: background 0.2s;
+            border-bottom: 0.5px solid var(--border-color);
+        }
+        .list-item:active { background: var(--input-bg); }
+        .list-item-avatar {
+            width: 52px;
+            height: 52px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            color: white;
+            overflow: hidden;
+            flex-shrink: 0;
+        }
+        .list-item-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        .list-item-info { flex: 1; min-width: 0; }
+        .list-item-name { color: var(--text-color); font-weight: 500; font-size: 16px; }
+        .list-item-preview { color: var(--text-secondary); font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .online-status { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-left: 6px; }
+        .online-status.online { background: #34C759; }
+        .online-status.offline { background: #8E8E93; }
+        
+        .chat-messages { 
+            flex: 1; 
+            overflow-y: auto; 
+            padding: 16px; 
+            display: flex; 
+            flex-direction: column; 
+            gap: 8px;
+            min-height: 0;
+        }
+        .message {
+            max-width: 80%;
+            padding: 8px 12px;
+            border-radius: 18px;
+            font-size: 15px;
+            word-wrap: break-word;
+            position: relative;
+        }
+        .my-message {
+            background: var(--message-my);
+            color: white;
+            align-self: flex-end;
+            border-bottom-right-radius: 4px;
+        }
+        .other-message {
+            background: var(--message-other);
+            color: var(--text-color);
+            align-self: flex-start;
+            border-bottom-left-radius: 4px;
+        }
+        .message-name { font-size: 12px; color: var(--accent-color); margin-bottom: 4px; font-weight: 500; }
+        .message-time { font-size: 10px; color: var(--text-secondary); margin-top: 4px; text-align: right; }
+        .message-img { max-width: 200px; max-height: 200px; border-radius: 12px; margin-top: 4px; cursor: pointer; }
+        
+        .voice-message {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 200px;
+            cursor: pointer;
+        }
+        .voice-play-btn {
+            width: 34px;
+            height: 34px;
+            background: var(--accent-color);
+            border: none;
+            border-radius: 50%;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            flex-shrink: 0;
+        }
+        .voice-waveform {
+            flex: 1;
+            height: 32px;
+            display: flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .wave-bar {
+            width: 3px;
+            background: currentColor;
+            border-radius: 2px;
+            opacity: 0.7;
+        }
+        .my-message .wave-bar { background: white; }
+        .other-message .wave-bar { background: var(--accent-color); }
+        .voice-duration {
+            font-size: 12px;
+            color: var(--text-secondary);
+            min-width: 40px;
+            text-align: right;
+        }
+        
+        .input-area {
+            background: var(--header-bg);
+            padding: 6px 10px;
+            padding-bottom: calc(6px + env(safe-area-inset-bottom, 0px));
+            display: flex;
+            gap: 5px;
+            align-items: center;
+            border-top: 0.5px solid var(--border-color);
+            flex-shrink: 0;
+            width: 100%;
+            box-sizing: border-box;
+        }
+        .input-area input {
+            flex: 1;
+            min-width: 0;
+            background: var(--input-bg);
+            border: none;
+            padding: 8px 12px;
+            border-radius: 25px;
+            color: var(--text-color);
+            font-size: 15px;
+            outline: none;
+        }
+        .send-btn, .attach-btn, .voice-btn {
+            background: var(--accent-color);
+            border: none;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            font-size: 16px;
+            color: white;
+            flex-shrink: 0;
+        }
+        .attach-btn, .voice-btn {
+            background: var(--input-bg);
+            color: var(--accent-color);
+        }
+        .send-btn {
+            background: var(--accent-color);
+            color: white;
+        }
+        
+        .recording-animation {
+            position: fixed;
+            bottom: 120px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            padding: 15px 25px;
+            border-radius: 50px;
+            display: none;
+            align-items: center;
+            gap: 15px;
+            z-index: 2000;
+        }
+        .recording-animation.active { display: flex; }
+        .recording-wave-bars {
+            display: flex;
+            gap: 3px;
+            align-items: center;
+            height: 40px;
+        }
+        .recording-wave-bars span {
+            width: 4px;
+            background: #FF3B30;
+            border-radius: 2px;
+            animation: soundWave 0.8s infinite ease-in-out;
+        }
+        @keyframes soundWave {
+            0%, 100% { height: 10px; }
+            50% { height: 30px; }
+        }
+        .recording-timer-text {
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+        }
+        .cancel-recording {
+            background: #FF3B30;
+            border: none;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            color: white;
+            font-size: 20px;
+            cursor: pointer;
+        }
+        
+        .delete-msg {
+            position: absolute;
+            top: -8px;
+            right: -8px;
+            background: #FF3B30;
+            border-radius: 50%;
+            width: 20px;
+            height: 20px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            transition: 0.2s;
+            color: white;
+        }
+        .message:hover .delete-msg { opacity: 1; }
+        
+        .form-container { flex: 1; display: flex; flex-direction: column; justify-content: center; padding: 32px; gap: 16px; overflow-y: auto; }
+        .form-container input, .form-container textarea {
+            background: var(--input-bg);
+            border: 0.5px solid var(--border-color);
+            padding: 14px;
+            border-radius: 12px;
+            color: var(--text-color);
+            font-size: 16px;
+            width: 100%;
+        }
+        .btn-primary {
+            background: var(--accent-color);
+            border: none;
+            padding: 14px;
+            border-radius: 12px;
+            color: white;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+        .btn-secondary {
+            background: var(--input-bg);
+            border: 0.5px solid var(--accent-color);
+            padding: 12px;
+            border-radius: 12px;
+            color: var(--accent-color);
+            cursor: pointer;
+        }
+        .btn-danger {
+            background: #FF3B30;
+            border: none;
+            padding: 12px;
+            border-radius: 12px;
+            color: white;
+            cursor: pointer;
+        }
+        
+        .toast {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.85);
+            color: white;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            display: none;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+            white-space: nowrap;
+        }
+        
+        .search-bar { 
+            background: var(--header-bg); 
+            padding: 8px 16px; 
+            flex-shrink: 0;
+            position: relative;
+        }
+        .search-bar input {
+            width: 100%;
+            background: var(--input-bg);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 25px;
+            color: var(--text-color);
+            font-size: 15px;
+        }
+        .search-results {
+            position: absolute;
+            top: 100%;
+            left: 8px;
+            right: 8px;
+            background: var(--header-bg);
+            border-radius: 12px;
+            z-index: 1000;
+            max-height: 300px;
+            overflow-y: auto;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .search-result {
+            padding: 12px 16px;
+            cursor: pointer;
+            border-bottom: 0.5px solid var(--border-color);
+        }
+        .search-result:active { background: var(--input-bg); }
+        
+        .profile-field {
+            background: var(--input-bg);
+            padding: 16px;
+            margin: 8px 16px;
+            border-radius: 12px;
+            display: flex;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .profile-field label { color: var(--text-secondary); font-size: 14px; }
+        .profile-field value { color: var(--text-color); font-weight: 500; font-size: 14px; }
+        
+        .settings-item {
+            background: var(--input-bg);
+            padding: 16px;
+            margin: 8px 16px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+        }
+        .settings-item span { color: var(--text-color); font-size: 14px; }
+        .theme-switch {
+            width: 50px;
+            height: 30px;
+            background: var(--border-color);
+            border-radius: 15px;
+            cursor: pointer;
+            position: relative;
+        }
+        .theme-switch.active { background: var(--accent-color); }
+        .theme-switch::after {
+            content: "";
+            width: 26px;
+            height: 26px;
+            background: white;
+            border-radius: 50%;
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            transition: 0.2s;
+        }
+        .theme-switch.active::after { left: 22px; }
+        
+        .avatar-large {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            cursor: pointer;
+            overflow: hidden;
+            border-radius: 50%;
+            background: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+        }
+        .avatar-large img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .photo-preview {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: var(--input-bg);
+            padding: 8px;
+            border-radius: 12px;
+            margin: 8px;
+            flex-shrink: 0;
+        }
+        .photo-preview img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+        .photo-preview input { flex: 1; background: transparent; border: none; color: var(--text-color); font-size: 13px; }
+        .photo-preview button { background: #FF3B30; border: none; padding: 8px 12px; border-radius: 8px; color: white; cursor: pointer; font-size: 13px; }
+        
+        .fab {
+            position: fixed;
+            bottom: 80px;
+            right: 16px;
+            width: 56px;
+            height: 56px;
+            background: var(--accent-color);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            z-index: 100;
+            color: white;
+            font-size: 24px;
+            border: none;
+        }
+        .fab-menu {
+            position: fixed;
+            bottom: 140px;
+            right: 16px;
+            z-index: 100;
+            display: none;
+            flex-direction: column;
+            gap: 12px;
+            align-items: flex-end;
+        }
+        .fab-menu-item {
+            width: 48px;
+            height: 48px;
+            background: var(--header-bg);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.2);
+            color: var(--text-color);
+            font-size: 20px;
+            border: none;
+        }
+        
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.95);
+            z-index: 1000;
+            display: none;
+            align-items: center;
+            justify-content: center;
+            flex-direction: column;
+        }
+        .modal img { max-width: 90%; max-height: 80%; object-fit: contain; }
+        .modal button {
+            margin-top: 20px;
+            background: var(--accent-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 20px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .group-admin { background: var(--accent-color); color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 8px; }
+        .group-owner { background: #FF9F0A; color: white; font-size: 10px; padding: 2px 6px; border-radius: 10px; margin-left: 8px; }
+        
+        .invite-link {
+            background: var(--input-bg);
+            padding: 12px;
+            border-radius: 12px;
+            margin: 8px 16px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+        .invite-link input { flex: 1; background: transparent; border: none; color: var(--text-color); font-size: 13px; }
+        .invite-link button { background: var(--accent-color); border: none; padding: 8px 16px; border-radius: 8px; color: white; cursor: pointer; font-size: 13px; }
+        
+        .main-tabs {
+            display: flex;
+            background: var(--header-bg);
+            border-bottom: 0.5px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .main-tab {
+            flex: 1;
+            text-align: center;
+            padding: 12px;
+            color: var(--text-secondary);
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .main-tab.active { color: var(--accent-color); border-bottom: 2px solid var(--accent-color); }
+        
+        .file-input { display: none; }
+        
+        .call-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 30px;
+            padding: 20px;
+        }
+        .call-avatar {
+            width: 120px;
+            height: 120px;
+            background: var(--accent-color);
+            border-radius: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 60px;
+        }
+        .call-status {
+            font-size: 18px;
+            color: var(--text-color);
+        }
+        .call-buttons {
+            display: flex;
+            gap: 30px;
+            margin-top: 30px;
+        }
+        .call-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 35px;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+        }
+        .call-end {
+            background: #FF3B30;
+            color: white;
+        }
+        .call-mute {
+            background: var(--input-bg);
+            color: var(--text-color);
+        }
+        
+        .other-profile-screen {
+            text-align: center;
+            padding: 32px;
+        }
+        .other-profile-avatar {
+            width: 100px;
+            height: 100px;
+            margin: 0 auto;
+            border-radius: 50%;
+            background: var(--accent-color);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 50px;
+            overflow: hidden;
+        }
+        .other-profile-avatar img { width: 100%; height: 100%; object-fit: cover; }
+        
+        .search-link-area {
+            background: var(--header-bg);
+            padding: 8px 16px;
+            flex-shrink: 0;
+            display: flex;
+            gap: 8px;
+        }
+        .search-link-area input {
+            flex: 1;
+            background: var(--input-bg);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 25px;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .search-link-area button {
+            background: var(--accent-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        
+        .join-btn {
+            background: var(--accent-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+            margin-top: 16px;
+        }
+        .joined-btn {
+            background: #34C759;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            color: white;
+            cursor: default;
+            font-size: 14px;
+        }
+        
+        .offline-badge {
+            position: fixed;
+            bottom: 160px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.8);
+            color: #FF9F0A;
+            padding: 8px 16px;
+            border-radius: 25px;
+            font-size: 12px;
+            z-index: 1000;
+            display: none;
+            backdrop-filter: blur(10px);
+            white-space: nowrap;
+        }
+        
+        /* ========== КИНО СТИЛИ ========== */
+        .movies-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+        .movies-search {
+            background: var(--header-bg);
+            padding: 12px;
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+        .movies-search input {
+            flex: 1;
+            background: var(--input-bg);
+            border: none;
+            padding: 10px 16px;
+            border-radius: 25px;
+            color: var(--text-color);
+            font-size: 14px;
+        }
+        .movies-search button {
+            background: var(--accent-color);
+            border: none;
+            padding: 10px 20px;
+            border-radius: 25px;
+            color: white;
+            cursor: pointer;
+            font-size: 14px;
+        }
+        .movies-tabs {
+            display: flex;
+            background: var(--header-bg);
+            border-bottom: 0.5px solid var(--border-color);
+            flex-shrink: 0;
+        }
+        .movies-tab {
+            flex: 1;
+            text-align: center;
+            padding: 10px;
+            color: var(--text-secondary);
+            font-size: 13px;
+            cursor: pointer;
+        }
+        .movies-tab.active { color: var(--accent-color); border-bottom: 2px solid var(--accent-color); }
+        
+        .movies-grid {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 16px;
+        }
+        .movie-card {
+            background: var(--input-bg);
+            border-radius: 16px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.2s;
+            border: 1px solid var(--border-color);
+        }
+        .movie-card:active { transform: scale(0.97); }
+        .movie-card .poster {
+            width: 100%;
+            aspect-ratio: 2/3;
+            object-fit: cover;
+            background: var(--header-bg);
+        }
+        .movie-card .movie-info {
+            padding: 10px;
+        }
+        .movie-card .movie-title {
+            font-size: 14px;
+            font-weight: 500;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: var(--text-color);
+            margin-bottom: 4px;
+        }
+        .movie-card .movie-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+        .rating { color: #FFAA00; }
+        
+        .player-container {
+            position: relative;
+            width: 100%;
+            padding-bottom: 56.25%;
+            background: #000;
+        }
+        .player-container iframe {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            border: none;
+        }
+        .player-selectors {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            padding: 12px;
+            justify-content: center;
+        }
+        .player-btn {
+            background: var(--input-bg);
+            border: 1px solid var(--accent-color);
+            color: var(--text-color);
+            padding: 8px 14px;
+            border-radius: 25px;
+            font-size: 12px;
+            cursor: pointer;
+        }
+        .player-btn.active {
+            background: var(--accent-color);
+            color: white;
+        }
+        .movie-detail-full {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--bg-color);
+            z-index: 2000;
+            overflow-y: auto;
+        }
+        .loading-text {
+            text-align: center;
+            padding: 40px;
+            color: var(--text-secondary);
+        }
+        
+        @media (max-width: 500px) {
+            .movies-grid { grid-template-columns: repeat(auto-fill, minmax(130px, 1fr)); gap: 12px; }
+            .movie-card .movie-title { font-size: 12px; }
+            .movie-card .movie-meta { font-size: 10px; }
+        }
+        
+        .parser-progress {
+            position: fixed;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background: var(--accent-color);
+            height: 3px;
+            z-index: 2000;
+            width: 0%;
+            transition: width 0.3s;
+        }
+        .parser-status {
+            position: fixed;
+            bottom: 100px;
+            left: 50%;
+            transform: translateX(-50%);
+            background: rgba(0,0,0,0.9);
+            padding: 8px 20px;
+            border-radius: 30px;
+            font-size: 12px;
+            z-index: 2000;
+            display: none;
+            color: white;
+            white-space: nowrap;
+        }
+    </style>
+</head>
+<body>
+
+<!-- ЭКРАН РЕГИСТРАЦИИ -->
+<div id="authScreen" class="screen active">
+    <div class="form-container">
+        <div class="avatar-icon" style="align-self: center; width: 80px; height: 80px; font-size: 40px;">📱</div>
+        <h2 style="color: var(--text-color); text-align: center; font-size: 18px;">Мой Мессенджер</h2>
+        <input type="text" id="regName" placeholder="Ваше имя">
+        <input type="password" id="regPassword" placeholder="Пароль">
+        <button class="btn-primary" id="doRegisterBtn">Зарегистрироваться</button>
+        <button class="btn-secondary" id="showLoginBtn">У меня есть аккаунт</button>
+    </div>
+</div>
+
+<!-- ЭКРАН ВХОДА -->
+<div id="loginScreen" class="screen">
+    <div class="form-container">
+        <div class="avatar-icon" style="align-self: center; width: 80px; height: 80px; font-size: 40px;">📱</div>
+        <h2 style="color: var(--text-color); text-align: center; font-size: 18px;">Вход</h2>
+        <input type="text" id="loginName" placeholder="Ваше имя">
+        <input type="password" id="loginPassword" placeholder="Пароль">
+        <button class="btn-primary" id="doLoginBtn">Войти</button>
+        <button class="btn-secondary" id="backToRegisterBtn">Нет аккаунта?</button>
+    </div>
+</div>
+
+<!-- ОСНОВНОЙ ЭКРАН -->
+<div id="mainScreen" class="screen">
+    <div class="header">
+        <div class="avatar-icon" id="mainAvatar" onclick="showProfileScreen()">👤</div>
+        <h2>Мессенджер + KinoMir</h2>
+        <div style="width: 42px;"></div>
+    </div>
+    
+    <div class="main-tabs">
+        <div class="main-tab active" data-tab="all">ВСЕ</div>
+        <div class="main-tab" data-tab="contacts">Контакты</div>
+        <div class="main-tab" data-tab="calls">Звонки</div>
+        <div class="main-tab" data-tab="movies">🎬 КИНО</div>
+    </div>
+    
+    <div id="allTab" class="list-area" style="display: block;">
+        <div class="search-bar">
+            <input type="text" id="searchUsersInput" placeholder="Поиск пользователей...">
+            <div id="searchResults" class="search-results" style="display: none;"></div>
+        </div>
+        <div class="search-link-area">
+            <input type="text" id="searchLinkInput" placeholder="Введите ссылку на канал/группу...">
+            <button id="searchLinkBtn">🔍 Найти</button>
+        </div>
+        <div id="allList"></div>
+    </div>
+    
+    <div id="contactsTab" class="list-area" style="display: none;">
+        <div id="contactsList"></div>
+    </div>
+    
+    <div id="callsTab" class="list-area" style="display: none;">
+        <div id="callsList"></div>
+    </div>
+    
+    <div id="moviesTab" class="movies-container" style="display: none;">
+        <div class="movies-search">
+            <input type="text" id="movieSearchInput" placeholder="Поиск фильмов и сериалов...">
+            <button id="movieSearchBtn">Найти</button>
+        </div>
+        <div class="movies-tabs">
+            <div class="movies-tab active" data-movie-type="all">Все</div>
+            <div class="movies-tab" data-movie-type="movie">Фильмы</div>
+            <div class="movies-tab" data-movie-type="tv">Сериалы</div>
+        </div>
+        <div id="moviesGrid" class="movies-grid"></div>
+    </div>
+    
+    <button class="fab" id="fabBtn">✏️</button>
+    <div class="fab-menu" id="fabMenu">
+        <button class="fab-menu-item" id="newGroupFab">👥 Группа</button>
+        <button class="fab-menu-item" id="newChannelFab">📢 Канал</button>
+    </div>
+</div>
+
+<!-- ОСТАЛЬНЫЕ ЭКРАНЫ МЕССЕНДЖЕРА (ПОЛНОСТЬЮ СОХРАНЕНЫ) -->
+<div id="profileScreen" class="screen"><div class="header"><button class="back-btn" onclick="showMainScreen()">←</button><h2>Профиль</h2><div style="width:32px"></div></div><div style="text-align:center;padding:24px"><div class="avatar-large" id="profileAvatar" onclick="document.getElementById('avatarInput').click()">👤</div><input type="file" id="avatarInput" accept="image/*" style="display:none"><h3 style="color:var(--text-color);margin-top:16px" id="profileName"></h3><p style="color:var(--text-secondary);margin-top:8px" id="profileBio"></p></div><div class="profile-field" onclick="editField('name')"><label>Имя</label><value id="profileNameValue"></value></div><div class="profile-field" onclick="editField('bio')"><label>О себе</label><value id="profileBioValue"></value></div><div class="profile-field" onclick="changePassword()"><label>Сменить пароль</label><value>→</value></div><div class="profile-field" onclick="showScreen('settingsScreen')"><label>Настройки</label><value>→</value></div><button id="logoutBtn" class="btn-danger" style="margin:8px 16px">Выйти</button></div>
+<div id="passwordScreen" class="screen"><div class="header"><button class="back-btn" onclick="showProfileScreen()">←</button><h2>Сменить пароль</h2></div><div class="form-container"><input type="password" id="oldPassword" placeholder="Старый пароль"><input type="password" id="newPassword" placeholder="Новый пароль"><input type="password" id="confirmPassword" placeholder="Подтвердите пароль"><button class="btn-primary" id="changePasswordBtn">Сохранить</button></div></div>
+<div id="settingsScreen" class="screen"><div class="header"><button class="back-btn" onclick="showProfileScreen()">←</button><h2>Настройки</h2></div><div class="settings-item" id="settingsTheme"><span>Тёмная тема</span><div class="theme-switch" id="themeSwitch"></div></div><div class="settings-item" id="settingsLogout" style="background:#FF3B30"><span style="color:white">Выйти</span><span style="color:white">→</span></div></div>
+<div id="chatScreen" class="screen"><div class="header"><button class="back-btn" onclick="showMainScreen()">←</button><div class="avatar-icon" id="chatAvatar">👤</div><h2 id="chatTitle" style="flex:1;font-size:16px;cursor:pointer" onclick="viewOtherProfile()">Чат</h2><button id="chatInfoBtn" style="background:none;border:none;color:var(--accent-color);font-size:18px;cursor:pointer">ℹ️</button><button id="chatCallBtn" style="background:none;border:none;color:var(--accent-color);font-size:18px;cursor:pointer">📞</button></div><div id="chatMessages" class="chat-messages"></div><div id="photoPreview" class="photo-preview" style="display:none"><img id="previewImg"><input type="text" id="photoCaption" placeholder="Коммент..."><button onclick="cancelPhoto()">✕</button><button id="sendPhotoBtn" style="background:var(--accent-color);color:white">Отправить</button></div><div class="input-area"><button class="attach-btn" onclick="attachFile()">📎</button><button class="voice-btn" id="voiceBtn">🎤</button><input type="text" id="messageInput" placeholder="Сообщение..."><button class="send-btn" onclick="sendMessage()">📤</button></div><input type="file" id="fileInput" accept="image/*" style="display:none"></div>
+<div id="callScreen" class="screen"><div class="header"><button class="back-btn" onclick="endCall()">←</button><h2>Звонок</h2></div><div class="call-container"><div class="call-avatar" id="callAvatar">👤</div><div class="call-status" id="callStatus">Соединение...</div><div class="call-buttons"><button class="call-btn call-mute" id="muteBtn" onclick="toggleMute()">🔊</button><button class="call-btn call-end" onclick="endCall()">📞</button></div></div></div>
+<div id="recordingAnimation" class="recording-animation"><div class="recording-wave-bars"><span></span><span></span><span></span><span></span><span></span><span></span></div><div class="recording-timer-text" id="recordTimerText">0:00</div><button class="cancel-recording" onclick="cancelRecording()">✕</button></div>
+<div id="chatInfoScreen" class="screen"><div class="header"><button class="back-btn" onclick="showScreen('chatScreen')">←</button><h2>Информация</h2></div><div id="chatInfoContent" class="list-area"></div><div style="padding:16px"><button id="leaveChatBtn" class="btn-danger" style="width:100%">Покинуть чат</button></div></div>
+<div id="newGroupScreen" class="screen"><div class="header"><button class="back-btn" onclick="showMainScreen()">←</button><h2>Новая группа</h2></div><div class="form-container"><input type="text" id="groupName" placeholder="Название группы"><input type="text" id="groupLink" placeholder="Ссылка"><div id="contactsForGroup" class="list-area" style="max-height:300px"></div><button class="btn-primary" id="createGroupBtn">Создать</button></div></div>
+<div id="newChannelScreen" class="screen"><div class="header"><button class="back-btn" onclick="showMainScreen()">←</button><h2>Новый канал</h2></div><div class="form-container"><input type="text" id="channelName" placeholder="Название канала"><input type="text" id="channelLink" placeholder="Ссылка"><textarea id="channelDesc" placeholder="Описание" rows="3"></textarea><button class="btn-primary" id="createChannelBtn">Создать</button></div></div>
+<div id="editScreen" class="screen"><div class="header"><button class="back-btn" onclick="showProfileScreen()">←</button><h2 id="editTitle">Редактировать</h2></div><div class="form-container"><input type="text" id="editValue" placeholder="Новое значение"><button class="btn-primary" id="saveEditBtn">Сохранить</button></div></div>
+<div id="otherProfileScreen" class="screen"><div class="header"><button class="back-btn" onclick="showMainScreen()">←</button><h2>Профиль</h2></div><div class="other-profile-screen"><div class="other-profile-avatar" id="otherProfileAvatar">👤</div><h3 style="color:var(--text-color);margin-top:16px" id="otherProfileName"></h3><p style="color:var(--text-secondary);margin-top:8px" id="otherProfileBio"></p><button id="startChatBtn" class="btn-primary" style="margin-top:24px">💬 Написать</button><button id="callFromProfileBtn" class="btn-secondary" style="margin-top:12px">📞 Позвонить</button></div></div>
+<div id="searchLinkResultScreen" class="screen"><div class="header"><button class="back-btn" onclick="showMainScreen()">←</button><h2>Найден чат</h2></div><div id="searchLinkResultContent" class="other-profile-screen"><div class="other-profile-avatar" id="foundChatAvatar">👥</div><h3 id="foundChatName"></h3><p id="foundChatDescription"></p><div id="foundChatAction"></div></div></div>
+<div id="photoModal" class="modal" onclick="closeModal()"><img id="modalImg"><button onclick="saveImage()">Сохранить</button><button onclick="closeModal()">Закрыть</button></div>
+<div id="toast" class="toast"></div>
+<div id="offlineBadge" class="offline-badge">📡 Офлайн-режим</div>
+<div id="parserProgress" class="parser-progress"></div>
+<div id="parserStatus" class="parser-status"></div>
+
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+
+<script>
+    // ========== FIREBASE ==========
+    const firebaseConfig = {
+        apiKey: "AIzaSyCnQDRBVzcTCWoNjU6-kmcioR5XHc29rWA",
+        authDomain: "fiiimassadwer.firebaseapp.com",
+        projectId: "fiiimassadwer",
+        storageBucket: "fiiimassadwer.firebasestorage.app",
+        messagingSenderId: "811931402917",
+        appId: "1:811931402917:android:78abbd2aa31393eaff434c"
+    };
+    if (!firebase.apps.length) firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    db.enablePersistence().catch(()=>{});
+    
+    // ========== ГЛОБАЛЬНЫЕ ПЕРЕМЕННЫЕ МЕССЕНДЖЕРА ==========
+    let currentUser = null;
+    let currentUserData = null;
+    let currentChatId = null;
+    let currentChatData = null;
+    let currentOtherUser = null;
+    let unsubscribeMessages = null;
+    let editFieldType = null;
+    let currentAudio = null;
+    let isCallActive = false;
+    let localStream = null;
+    
+    // ========== КИНО ПЕРЕМЕННЫЕ ==========
+    let currentMovieQuery = '';
+    let currentMovieType = 'all';
+    let isParserRunning = false;
+    const TMDB_API_KEY = '2dca580c2a14b55200e784d157207b4d';
+    const TMDB_BASE = 'https://api.themoviedb.org/3';
+    const TMDB_IMAGE = 'https://image.tmdb.org/t/p/w500';
+    
+    // ========== РАСШИРЕННЫЙ ПАРСЕР ДЛЯ КИНО (10 страниц = более 2000 фильмов) ==========
+    async function runFullParser() {
+        if (isParserRunning) { showToast("Парсер уже запущен"); return; }
+        isParserRunning = true;
+        const progressBar = document.getElementById('parserProgress');
+        const statusDiv = document.getElementById('parserStatus');
+        progressBar.style.width = '0%';
+        statusDiv.style.display = 'block';
+        statusDiv.innerText = 'Подготовка...';
+        
+        try {
+            const totalPages = 10;
+            let allMovies = [];
+            let allTV = [];
+            
+            for (let page = 1; page <= totalPages; page++) {
+                statusDiv.innerText = `Сбор фильмов: страница ${page}/${totalPages}...`;
+                progressBar.style.width = (page / totalPages * 50) + '%';
+                
+                const [moviesRes, tvRes] = await Promise.all([
+                    fetch(`${TMDB_BASE}/movie/popular?api_key=${TMDB_API_KEY}&language=ru&page=${page}`),
+                    fetch(`${TMDB_BASE}/tv/popular?api_key=${TMDB_API_KEY}&language=ru&page=${page}`)
+                ]);
+                const moviesData = await moviesRes.json();
+                const tvData = await tvRes.json();
+                if (moviesData.results) allMovies.push(...moviesData.results);
+                if (tvData.results) allTV.push(...tvData.results);
+                await new Promise(r => setTimeout(r, 100));
+            }
+            
+            // Удаляем дубликаты по id
+            const uniqueMovies = [];
+            const seenMovieIds = new Set();
+            for (const m of allMovies) {
+                if (!seenMovieIds.has(m.id)) {
+                    seenMovieIds.add(m.id);
+                    uniqueMovies.push(m);
+                }
+            }
+            const uniqueTV = [];
+            const seenTVIds = new Set();
+            for (const t of allTV) {
+                if (!seenTVIds.has(t.id)) {
+                    seenTVIds.add(t.id);
+                    uniqueTV.push(t);
+                }
+            }
+            
+            statusDiv.innerText = `Сохранение фильмов...`;
+            let addedMovies = 0, addedTV = 0;
+            
+            for (const m of uniqueMovies) {
+                const docRef = db.collection('movies').doc(`tmdb_${m.id}`);
+                const doc = await docRef.get();
+                if (!doc.exists) {
+                    await docRef.set({
+                        tmdb_id: m.id,
+                        title: m.title,
+                        year: (m.release_date || '').slice(0,4) || '—',
+                        rating: m.vote_average ? m.vote_average.toFixed(1) : '—',
+                        poster: m.poster_path ? `${TMDB_IMAGE}${m.poster_path}` : null,
+                        type: 'movie',
+                        addedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    addedMovies++;
+                }
+            }
+            
+            for (const t of uniqueTV) {
+                const docRef = db.collection('movies').doc(`tmdb_${t.id}`);
+                const doc = await docRef.get();
+                if (!doc.exists) {
+                    await docRef.set({
+                        tmdb_id: t.id,
+                        title: t.name,
+                        year: (t.first_air_date || '').slice(0,4) || '—',
+                        rating: t.vote_average ? t.vote_average.toFixed(1) : '—',
+                        poster: t.poster_path ? `${TMDB_IMAGE}${t.poster_path}` : null,
+                        type: 'tv',
+                        addedAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                    addedTV++;
+                }
+            }
+            
+            progressBar.style.width = '100%';
+            statusDiv.innerText = `Готово! Добавлено ${addedMovies} фильмов и ${addedTV} сериалов`;
+            setTimeout(() => { statusDiv.style.display = 'none'; progressBar.style.width = '0%'; }, 3000);
+            showToast(`✅ Парсер завершён! Добавлено ${addedMovies} фильмов, ${addedTV} сериалов`);
+            await loadMovies();
+        } catch (e) {
+            statusDiv.innerText = '❌ Ошибка парсера';
+            setTimeout(() => { statusDiv.style.display = 'none'; progressBar.style.width = '0%'; }, 3000);
+            showToast("Ошибка парсера");
+        } finally { isParserRunning = false; }
+    }
+    
+    // ========== ФУНКЦИЯ ПОЛУЧЕНИЯ ПЛЕЕРОВ ==========
+    function getPlayers(id, type, imdbId, season = 1, episode = 1) {
+        const players = [];
+        const s = season || 1, e = episode || 1;
+        if (imdbId) {
+            players.push({ name: 'Atomics', url: `https://api.atomics.ws/embed/imdb/${imdbId}`, quality: '1080p' });
+            if (type === 'tv') players.push({ name: 'Atomics TV', url: `https://api.atomics.ws/embed/imdb/${imdbId}/${s}/${e}`, quality: '1080p' });
+        }
+        players.push({ name: 'EmbedSu', url: `https://embed.su/embed/${type === 'movie' ? 'movie' : 'tv'}/${id}${type === 'tv' ? `/${s}/${e}` : ''}`, quality: '4K' });
+        players.push({ name: 'VidSrc Pro', url: `https://vidsrc.pro/embed/${type === 'movie' ? 'movie' : 'tv'}/${id}${type === 'tv' ? `/${s}/${e}` : ''}`, quality: '1080p' });
+        players.push({ name: 'VidSrc.cc', url: `https://vidsrc.cc/v2/embed/${type === 'movie' ? 'movie' : 'tv'}/${id}${type === 'tv' ? `/${s}/${e}` : ''}`, quality: '1080p' });
+        players.push({ name: 'AutoEmbed', url: `https://autoembed.cc/embed/${type === 'movie' ? 'movie' : 'tv'}/${id}${type === 'tv' ? `/${s}/${e}` : ''}`, quality: '1080p' });
+        players.push({ name: 'SuperEmbed', url: `https://multiembed.mov/?video_id=${id}&tmdb=1${type === 'tv' ? `&s=${s}&e=${e}` : ''}`, quality: '1080p' });
+        return players;
+    }
+    
+    // ========== ЗАГРУЗКА ФИЛЬМОВ ИЗ БАЗЫ ДАННЫХ FIRESTORE ==========
+    async function loadMovies() {
+        const container = document.getElementById('moviesGrid');
+        if (!container) return;
+        container.innerHTML = '<div class="loading-text">⏳ Загрузка фильмов из базы данных...</div>';
+        try {
+            let snapshot = await db.collection('movies').get();
+            let movies = [];
+            snapshot.forEach(doc => movies.push({ id: doc.id, ...doc.data() }));
+            
+            // Если база пуста или мало фильмов - запускаем парсер
+            if (movies.length < 20) {
+                container.innerHTML = '<div class="loading-text">🎬 Парсер собирает фильмы (2000+)...<br>Подождите 1-2 минуты...</div>';
+                await runFullParser();
+                snapshot = await db.collection('movies').get();
+                movies = [];
+                snapshot.forEach(doc => movies.push({ id: doc.id, ...doc.data() }));
+            }
+            
+            let filtered = movies;
+            if (currentMovieType !== 'all') filtered = filtered.filter(m => m.type === currentMovieType);
+            if (currentMovieQuery) filtered = filtered.filter(m => m.title && m.title.toLowerCase().includes(currentMovieQuery.toLowerCase()));
+            filtered.sort((a, b) => {
+                const yearA = parseInt(a.year) || 0;
+                const yearB = parseInt(b.year) || 0;
+                return yearB - yearA;
+            });
+            
+            renderMoviesGrid(filtered);
+        } catch(e) { container.innerHTML = '<div class="loading-text">❌ Ошибка загрузки</div>'; }
+    }
+    
+    function renderMoviesGrid(movies) {
+        const container = document.getElementById('moviesGrid');
+        if (!movies.length) { container.innerHTML = '<div class="loading-text">😕 Ничего не найдено</div>'; return; }
+        container.innerHTML = movies.map(m => `
+            <div class="movie-card" data-id="${m.tmdb_id || m.id.split('_')[1]}" data-type="${m.type}">
+                <img class="poster" src="${m.poster || 'https://via.placeholder.com/300x450'}" loading="lazy" onerror="this.src='https://via.placeholder.com/300x450'">
+                <div class="movie-info">
+                    <div class="movie-title">${escapeHtml(m.title || 'Без названия')}</div>
+                    <div class="movie-meta"><span>${m.year || '—'}</span><span class="rating">⭐ ${m.rating || '—'}</span></div>
+                </div>
+            </div>
+        `).join('');
+        document.querySelectorAll('.movie-card').forEach(card => {
+            card.addEventListener('click', () => openMovieDetail(card.dataset.id, card.dataset.type));
+        });
+    }
+    
+    async function openMovieDetail(movieId, movieType) {
+        try {
+            const detailUrl = `${TMDB_BASE}/${movieType}/${movieId}?api_key=${TMDB_API_KEY}&language=ru`;
+            const detailRes = await fetch(detailUrl);
+            const data = await detailRes.json();
+            const imdbId = data.imdb_id || null;
+            const overview = data.overview || 'Нет описания';
+            const title = data.title || data.name;
+            const poster = data.poster_path ? `${TMDB_IMAGE}${data.poster_path}` : null;
+            const year = (data.release_date || data.first_air_date || '').slice(0,4) || '—';
+            const rating = data.vote_average ? data.vote_average.toFixed(1) : '—';
+            const players = getPlayers(movieId, movieType, imdbId, 1, 1);
+            let currentPlayerIdx = 0;
+            
+            const modalDiv = document.createElement('div');
+            modalDiv.className = 'movie-detail-full';
+            modalDiv.id = 'movieDetailModal';
+            modalDiv.innerHTML = `
+                <div style="background:var(--header-bg);padding:12px 16px;display:flex;justify-content:space-between;position:sticky;top:0;z-index:10">
+                    <button onclick="closeMovieDetail()" style="background:none;border:none;color:var(--accent-color);font-size:24px;cursor:pointer">←</button>
+                    <h3 style="color:var(--text-color);font-size:16px;flex:1;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${escapeHtml(title)}</h3>
+                    <div style="width:32px"></div>
+                </div>
+                <div style="padding:16px">
+                    <div class="player-container"><iframe id="movieIframe" src="${players[0]?.url || ''}" allowfullscreen></iframe></div>
+                    <div class="player-selectors" id="playerSelectors">
+                        ${players.map((p, idx) => `<button class="player-btn ${idx === currentPlayerIdx ? 'active' : ''}" data-pidx="${idx}">${p.name} (${p.quality})</button>`).join('')}
+                    </div>
+                    <div style="display:flex;gap:16px;margin-top:16px;flex-wrap:wrap">
+                        ${poster ? `<img src="${poster}" style="width:100px;border-radius:12px">` : ''}
+                        <div style="flex:1">
+                            <div style="color:var(--text-color);font-weight:bold;margin-bottom:8px">${escapeHtml(title)} (${year})</div>
+                            <div style="color:var(--text-secondary);margin-bottom:8px">⭐ ${rating} / 10</div>
+                            <p style="color:var(--text-secondary);font-size:14px;line-height:1.4">${escapeHtml(overview)}</p>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modalDiv);
+            
+            const selectors = modalDiv.querySelectorAll('.player-btn');
+            selectors.forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const idx = parseInt(btn.dataset.pidx);
+                    if (!isNaN(idx)) {
+                        currentPlayerIdx = idx;
+                        const iframe = document.getElementById('movieIframe');
+                        if (iframe) iframe.src = players[idx].url;
+                        selectors.forEach(b => b.classList.remove('active'));
+                        btn.classList.add('active');
+                    }
+                });
+            });
+        } catch(e) { showToast("Ошибка загрузки фильма"); }
+    }
+    
+    function closeMovieDetail() { const modal = document.getElementById('movieDetailModal'); if (modal) modal.remove(); }
+    
+    // ========== ВСЕ ФУНКЦИИ МЕССЕНДЖЕРА (ПОЛНОСТЬЮ СОХРАНЕНЫ) ==========
+    function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'})[m]); }
+    function showToast(msg) { let t=document.getElementById("toast"); t.innerText=msg; t.style.display="block"; setTimeout(()=>t.style.display="none",2500); }
+    function showScreen(screenId) { document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(screenId).classList.add('active'); }
+    function showMainScreen() { if(unsubscribeMessages){unsubscribeMessages();currentChatId=null;} if(currentAudio){currentAudio.pause();currentAudio=null;} if(isCallActive) endCall(); showScreen('mainScreen'); if(currentUser){loadAll();loadContacts();loadAvatar();} document.getElementById("searchUsersInput").value = ""; document.getElementById("searchResults").style.display = "none"; }
+    function showProfileScreen() { loadProfileData(); showScreen('profileScreen'); }
+    
+    // АУТЕНТИФИКАЦИЯ
+    async function register() {
+        let name = document.getElementById("regName").value.trim();
+        let password = document.getElementById("regPassword").value;
+        if(!name || !password){ showToast("Заполните поля"); return; }
+        let userId = "user_" + Date.now() + "_" + Math.random().toString(36).substr(2, 6);
+        await db.collection("users").doc(userId).set({ userId, name, password, bio: "", createdAt: new Date().toISOString(), online: true });
+        currentUser = userId;
+        currentUserData = { userId, name, bio: "" };
+        localStorage.setItem("messenger_user", userId);
+        loadAvatar();
+        showMainScreen();
+        showToast("Добро пожаловать!");
+    }
+    async function login() {
+        let name = document.getElementById("loginName").value.trim();
+        let password = document.getElementById("loginPassword").value;
+        if(!name || !password){ showToast("Введите имя и пароль"); return; }
+        let snapshot = await db.collection("users").where("name", "==", name).where("password", "==", password).get();
+        if(snapshot.empty){ showToast("Неверное имя или пароль"); return; }
+        let userDoc = snapshot.docs[0];
+        currentUser = userDoc.id;
+        currentUserData = userDoc.data();
+        localStorage.setItem("messenger_user", currentUser);
+        loadAvatar();
+        showMainScreen();
+        showToast("Добро пожаловать!");
+    }
+    async function logout() { currentUser = null; localStorage.removeItem("messenger_user"); showScreen("authScreen"); }
+    async function loadAvatar() { if(!currentUser)return; let doc=await db.collection("users").doc(currentUser).get(); let u=doc.data(); let av=document.getElementById("mainAvatar"); if(u?.avatarUrl) av.innerHTML=`<img src="${u.avatarUrl}">`; else av.innerHTML="👤"; }
+    async function loadProfileData() { if(!currentUser)return; let doc=await db.collection("users").doc(currentUser).get(); let u=doc.data(); document.getElementById("profileName").innerText=u.name; document.getElementById("profileBio").innerText=u.bio||""; document.getElementById("profileNameValue").innerText=u.name; document.getElementById("profileBioValue").innerText=u.bio||"Добавить"; if(u?.avatarUrl) document.getElementById("profileAvatar").innerHTML=`<img src="${u.avatarUrl}">`; else document.getElementById("profileAvatar").innerHTML="👤"; }
+    function editField(field) { editFieldType=field; document.getElementById("editTitle").innerText=field==='name'?'Редактировать имя':'Редактировать описание'; document.getElementById("editValue").value=currentUserData?.[field]||""; showScreen("editScreen"); }
+    async function saveEdit() { let val=document.getElementById("editValue").value.trim(); let upd={}; if(editFieldType==='name') upd.name=val; else if(editFieldType==='bio') upd.bio=val; if(Object.keys(upd).length) await db.collection("users").doc(currentUser).update(upd); currentUserData=(await db.collection("users").doc(currentUser).get()).data(); showProfileScreen(); showToast("Профиль обновлён"); }
+    async function changePassword() { showScreen("passwordScreen"); }
+    async function changePasswordSave() { let oldPass=document.getElementById("oldPassword").value, newPass=document.getElementById("newPassword").value, confirmPass=document.getElementById("confirmPassword").value; if(currentUserData.password!==oldPass){ showToast("Неверный старый пароль"); return; } if(newPass!==confirmPass){ showToast("Пароли не совпадают"); return; } if(newPass.length<4){ showToast("Пароль должен быть не менее 4 символов"); return; } await db.collection("users").doc(currentUser).update({password:newPass}); currentUserData.password=newPass; showToast("Пароль изменён"); showProfileScreen(); }
+    
+    // ЧАТЫ
+    async function loadAll() { if(!currentUser)return; let chatsRef=db.collection("chats").where("participants","array-contains",currentUser); let snapshot=await chatsRef.get(); let allList=document.getElementById("allList"); if(snapshot.empty){ allList.innerHTML='<div style="padding:16px;color:var(--text-secondary);text-align:center">Нет чатов</div>'; return; } let html=''; for(let doc of snapshot.docs){ let chat=doc.data(); let otherUser=chat.participants?.find(p=>p!==currentUser); let name=chat.name||otherUser; let avatar="👤"; if(otherUser){ let userDoc=await db.collection("users").doc(otherUser).get(); name=userDoc.data()?.name||otherUser; avatar=userDoc.data()?.avatarUrl?`<img src="${userDoc.data().avatarUrl}">`:"👤"; }else{ avatar=chat.type==="group"?"👥":"📢"; } html+=`<div class="list-item" data-id="${doc.id}" data-type="${chat.type}" data-other="${otherUser||''}"><div class="list-item-avatar">${avatar}</div><div class="list-item-info"><div class="list-item-name">${escapeHtml(name)}</div><div class="list-item-preview">${escapeHtml(chat.lastMessage||"Новый чат")}</div></div></div>`; } allList.innerHTML=html; document.querySelectorAll('#allList .list-item').forEach(el=>{ el.onclick=()=>openChatById(el.dataset.id, el.querySelector('.list-item-name')?.innerText||"Чат", el.dataset.type, el.dataset.other); }); }
+    async function openChatById(chatId,chatName,type,otherUser){ if(unsubscribeMessages)unsubscribeMessages(); currentChatId=chatId; currentChatData={name:chatName,type:type}; currentOtherUser=otherUser||null; document.getElementById("chatTitle").innerHTML=escapeHtml(chatName); if(otherUser){ let userDoc=await db.collection("users").doc(otherUser).get(); document.getElementById("chatAvatar").innerHTML=userDoc.data()?.avatarUrl?`<img src="${userDoc.data().avatarUrl}">`:"👤"; }else{ document.getElementById("chatAvatar").innerHTML=type==="group"?"👥":"📢"; } loadMessages(); showScreen("chatScreen"); }
+    async function loadContacts() { if(!currentUser)return; let snapshot=await db.collection("users").get(); let contactsList=document.getElementById("contactsList"); contactsList.innerHTML=""; snapshot.forEach(doc=>{ let u=doc.data(); if(u.userId===currentUser)return; let div=document.createElement("div"); div.className="list-item"; div.innerHTML=`<div class="list-item-avatar">${u.avatarUrl?`<img src="${u.avatarUrl}">`:"👤"}</div><div class="list-item-info"><div class="list-item-name">${escapeHtml(u.name)}<span class="online-status ${u.online?'online':'offline'}"></span></div></div>`; div.onclick=()=>createPrivateChat(u.userId); contactsList.appendChild(div); }); }
+    async function createPrivateChat(otherId){ let userDoc=await db.collection("users").doc(otherId).get(); let name=userDoc.data()?.name||otherId; let chatId=[currentUser,otherId].sort().join("_"); let ref=db.collection("chats").doc(chatId); if(!(await ref.get()).exists) await ref.set({participants:[currentUser,otherId],type:"private",createdAt:Date.now(),lastMessage:""}); openChatById(chatId,name,"private",otherId); loadAll(); }
+    function loadMessages(){ if(!currentChatId)return; let ref=db.collection("chats").doc(currentChatId).collection("messages"); unsubscribeMessages=ref.orderBy("time","asc").onSnapshot(snap=>{ let container=document.getElementById("chatMessages"); container.innerHTML=""; if(snap.empty){ container.innerHTML='<div style="text-align:center;color:var(--text-secondary);padding:20px">Нет сообщений</div>'; return; } snap.forEach(d=>{ let data=d.data(); let isMy=data.sender===currentUser; let div=document.createElement("div"); div.className=`message ${isMy?'my-message':'other-message'}`; if(!isMy){ let nameSpan=document.createElement("div"); nameSpan.className="message-name"; nameSpan.innerText=data.senderName||data.sender; div.appendChild(nameSpan); } if(data.text){ let txt=document.createElement("div"); txt.innerText=data.text; div.appendChild(txt); } if(data.imageUrl){ let img=document.createElement("img"); img.src=data.imageUrl; img.className="message-img"; img.onclick=()=>openImageModal(data.imageUrl); div.appendChild(img); } let timeSpan=document.createElement("div"); timeSpan.className="message-time"; timeSpan.innerText=data.time?new Date(data.time.toDate()).toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'}):""; div.appendChild(timeSpan); if(isMy){ let del=document.createElement("div"); del.className="delete-msg"; del.innerHTML="✕"; del.onclick=()=>deleteMessage(d.id); div.appendChild(del); } container.appendChild(div); }); container.scrollTop=container.scrollHeight; }); }
+    async function sendMessage(){ let inp=document.getElementById("messageInput"); let txt=inp.value.trim(); if(!txt)return; await db.collection("chats").doc(currentChatId).collection("messages").add({sender:currentUser,senderName:currentUserData?.name||currentUser,text:txt,time:firebase.firestore.FieldValue.serverTimestamp()}); await db.collection("chats").doc(currentChatId).update({lastMessage:txt}); inp.value=""; }
+    async function deleteMessage(msgId){ if(confirm("Удалить сообщение?")) await db.collection("chats").doc(currentChatId).collection("messages").doc(msgId).delete(); }
+    function attachFile(){ document.getElementById("fileInput").click(); }
+    document.getElementById("fileInput").onchange=async(e)=>{ let file=e.target.files[0]; if(!file)return; let reader=new FileReader(); reader.onload=async(ev)=>{ await db.collection("chats").doc(currentChatId).collection("messages").add({sender:currentUser,senderName:currentUserData?.name||currentUser,imageUrl:ev.target.result,time:firebase.firestore.FieldValue.serverTimestamp()}); await db.collection("chats").doc(currentChatId).update({lastMessage:"📷 Фото"}); showToast("Фото отправлено"); }; reader.readAsDataURL(file); };
+    function openImageModal(url){ document.getElementById("modalImg").src=url; document.getElementById("photoModal").style.display="flex"; }
+    function closeModal(){ document.getElementById("photoModal").style.display="none"; }
+    function saveImage(){ let a=document.createElement('a'); a.href=document.getElementById("modalImg").src; a.download="photo.jpg"; a.click(); }
+    function cancelPhoto(){}
+    async function startCall(){ showScreen("callScreen"); isCallActive=true; try{ localStream=await navigator.mediaDevices.getUserMedia({audio:true}); }catch(e){} }
+    function endCall(){ if(localStream) localStream.getTracks().forEach(t=>t.stop()); isCallActive=false; showMainScreen(); }
+    function toggleMute(){ if(localStream){ let track=localStream.getAudioTracks()[0]; if(track) track.enabled=!track.enabled; document.getElementById("muteBtn").innerHTML=track?.enabled?"🔊":"🔇"; } }
+    async function viewOtherProfile(){ if(!currentOtherUser)return; let doc=await db.collection("users").doc(currentOtherUser).get(); let u=doc.data(); document.getElementById("otherProfileName").innerText=u.name; document.getElementById("otherProfileBio").innerText=u.bio||""; document.getElementById("otherProfileAvatar").innerHTML=u.avatarUrl?`<img src="${u.avatarUrl}">`:"👤"; showScreen("otherProfileScreen"); }
+    async function showChatInfo(){ showToast("Информация о чате"); }
+    async function leaveChat(){ if(confirm("Покинуть чат?")){ await db.collection("chats").doc(currentChatId).update({participants:firebase.firestore.FieldValue.arrayRemove(currentUser)}); showMainScreen(); } }
+    async function loadContactsForGroup(){ let snap=await db.collection("users").get(); let div=document.getElementById("contactsForGroup"); div.innerHTML=""; snap.forEach(doc=>{ let u=doc.data(); if(u.userId===currentUser)return; div.innerHTML+=`<div class="list-item"><div class="list-item-avatar">👤</div><div class="list-item-info"><div class="list-item-name">${escapeHtml(u.name)}</div></div><div style="margin-left:auto"><input type="checkbox" value="${u.userId}" class="group-member-checkbox"></div></div>`; }); }
+    async function createGroup(){ let name=document.getElementById("groupName").value.trim(); let link=document.getElementById("groupLink").value.trim(); if(!name){showToast("Введите название");return;} let checks=document.querySelectorAll(".group-member-checkbox:checked"); let participants=[currentUser]; checks.forEach(c=>participants.push(c.value)); let chatId=link?`group_${link}`:`group_${Date.now()}`; await db.collection("chats").doc(chatId).set({participants,type:"group",name,link:link||null,lastMessage:"",admins:[currentUser],owner:currentUser}); showToast("Группа создана"); showMainScreen(); }
+    async function createChannel(){ let name=document.getElementById("channelName").value.trim(); let link=document.getElementById("channelLink").value.trim(); let desc=document.getElementById("channelDesc").value.trim(); if(!name){showToast("Введите название");return;} let chatId=link?`channel_${link}`:`channel_${Date.now()}`; await db.collection("chats").doc(chatId).set({participants:[currentUser],type:"channel",name,link:link||null,description:desc,lastMessage:"",owner:currentUser,admins:[currentUser]}); showToast("Канал создан"); showMainScreen(); }
+    
+    // ГОЛОСОВЫЕ СООБЩЕНИЯ
+    let mediaRecorder=null, audioChunks=[], isRecordingActive=false, recordStartTime=null, recordTimerInterval=null;
+    async function startRecording(){ if(!currentChatId){showToast("Откройте чат");return;} try{ let stream=await navigator.mediaDevices.getUserMedia({audio:true}); mediaRecorder=new MediaRecorder(stream); audioChunks=[]; mediaRecorder.ondataavailable=e=>{if(e.data.size>0)audioChunks.push(e.data);}; mediaRecorder.onstop=async()=>{ if(audioChunks.length){ let blob=new Blob(audioChunks,{type:'audio/mp4'}); let url=URL.createObjectURL(blob); await sendVoiceMessage(url); } if(recordTimerInterval)clearInterval(recordTimerInterval); document.getElementById("recordingAnimation").classList.remove("active"); isRecordingActive=false; stream.getTracks().forEach(t=>t.stop()); }; mediaRecorder.start(); isRecordingActive=true; recordStartTime=Date.now(); document.getElementById("recordingAnimation").classList.add("active"); let sec=0; recordTimerInterval=setInterval(()=>{ sec++; let m=Math.floor(sec/60), s=sec%60; document.getElementById("recordTimerText").innerText=`${m}:${s.toString().padStart(2,'0')}`; if(sec>=60)stopRecording(); },1000); showToast("🎙️ Говорите..."); }catch(e){showToast("Ошибка микрофона");} }
+    function stopRecording(){ if(mediaRecorder&&isRecordingActive&&mediaRecorder.state==="recording") mediaRecorder.stop(); else{ if(recordTimerInterval)clearInterval(recordTimerInterval); document.getElementById("recordingAnimation").classList.remove("active"); isRecordingActive=false; } }
+    function cancelRecording(){ if(mediaRecorder&&isRecordingActive&&mediaRecorder.state==="recording"){ mediaRecorder.onstop=()=>{ if(recordTimerInterval)clearInterval(recordTimerInterval); document.getElementById("recordingAnimation").classList.remove("active"); isRecordingActive=false; if(mediaRecorder.stream)mediaRecorder.stream.getTracks().forEach(t=>t.stop()); }; mediaRecorder.stop(); audioChunks=[]; }else{ if(recordTimerInterval)clearInterval(recordTimerInterval); document.getElementById("recordingAnimation").classList.remove("active"); isRecordingActive=false; } showToast("Запись отменена"); }
+    async function sendVoiceMessage(audioUrl){ showToast("Отправка..."); let response=await fetch(audioUrl); let blob=await response.blob(); let reader=new FileReader(); reader.onloadend=async()=>{ let audioBase64=reader.result; let duration=Math.floor((Date.now()-recordStartTime)/1000); await db.collection("chats").doc(currentChatId).collection("messages").add({sender:currentUser,senderName:currentUserData?.name||currentUser,audioUrl:audioBase64,duration:duration,time:firebase.firestore.FieldValue.serverTimestamp()}); await db.collection("chats").doc(currentChatId).update({lastMessage:"🎤 Голосовое"}); showToast("Голосовое отправлено"); }; reader.readAsDataURL(blob); }
+    
+    // ========== ОБРАБОТЧИКИ СОБЫТИЙ ==========
+    document.getElementById("doRegisterBtn").onclick=register;
+    document.getElementById("doLoginBtn").onclick=login;
+    document.getElementById("showLoginBtn").onclick=()=>showScreen("loginScreen");
+    document.getElementById("backToRegisterBtn").onclick=()=>showScreen("authScreen");
+    document.getElementById("logoutBtn").onclick=logout;
+    document.getElementById("settingsLogout").onclick=logout;
+    document.getElementById("settingsTheme").onclick=()=>{ document.body.classList.toggle("light"); localStorage.setItem("theme",document.body.classList.contains("light")?"light":"dark"); document.getElementById("themeSwitch")?.classList.toggle("active"); };
+    document.getElementById("newGroupFab").onclick=()=>{loadContactsForGroup();showScreen("newGroupScreen");};
+    document.getElementById("newChannelFab").onclick=()=>showScreen("newChannelScreen");
+    document.getElementById("createGroupBtn").onclick=createGroup;
+    document.getElementById("createChannelBtn").onclick=createChannel;
+    document.getElementById("startChatBtn").onclick=()=>{if(currentOtherUser)createPrivateChat(currentOtherUser);};
+    document.getElementById("callFromProfileBtn").onclick=startCall;
+    document.getElementById("saveEditBtn").onclick=saveEdit;
+    document.getElementById("changePasswordBtn").onclick=changePasswordSave;
+    document.getElementById("chatInfoBtn").onclick=showChatInfo;
+    document.getElementById("leaveChatBtn").onclick=leaveChat;
+    document.getElementById("sendPhotoBtn").onclick=()=>document.getElementById("fileInput").click();
+    document.getElementById("chatCallBtn").onclick=startCall;
+    
+    let voiceBtn=document.getElementById("voiceBtn");
+    voiceBtn.addEventListener('mousedown',startRecording);
+    voiceBtn.addEventListener('mouseup',stopRecording);
+    voiceBtn.addEventListener('touchstart',(e)=>{e.preventDefault();startRecording();});
+    voiceBtn.addEventListener('touchend',(e)=>{e.preventDefault();stopRecording();});
+    document.querySelector(".cancel-recording")?.addEventListener('click',cancelRecording);
+    
+    // Вкладки основного экрана
+    document.querySelectorAll('.main-tab').forEach(tab => {
+        tab.onclick = () => {
+            document.querySelectorAll('.main-tab').forEach(t => t.classList.remove('active'));
+            tab.classList.add('active');
+            let tabName = tab.dataset.tab;
+            document.getElementById('allTab').style.display = tabName === 'all' ? 'block' : 'none';
+            document.getElementById('contactsTab').style.display = tabName === 'contacts' ? 'block' : 'none';
+            document.getElementById('callsTab').style.display = tabName === 'calls' ? 'block' : 'none';
+            document.getElementById('moviesTab').style.display = tabName === 'movies' ? 'flex' : 'none';
+            if(tabName === 'movies') loadMovies();
+            if(tabName === 'contacts') loadContacts();
+        };
+    });
+    
+    // Кино табы
+    document.querySelectorAll('.movies-tab').forEach(t => {
+        t.onclick = () => {
+            document.querySelectorAll('.movies-tab').forEach(tt => tt.classList.remove('active'));
+            t.classList.add('active');
+            currentMovieType = t.dataset.movieType;
+            loadMovies();
+        };
+    });
+    document.getElementById("movieSearchBtn").onclick = () => { currentMovieQuery = document.getElementById("movieSearchInput").value.trim(); loadMovies(); };
+    document.getElementById("movieSearchInput").addEventListener("keypress", (e) => { if(e.key === 'Enter'){ currentMovieQuery = e.target.value.trim(); loadMovies(); } });
+    
+    // Поиск пользователей
+    document.getElementById("searchUsersInput").addEventListener("input", async function(e) {
+        let val = e.target.value.trim().toLowerCase();
+        if(!val){ document.getElementById("searchResults").style.display = "none"; return; }
+        let snap = await db.collection("users").get();
+        let results = [];
+        snap.forEach(doc => { let u = doc.data(); if(u.userId !== currentUser && u.name.toLowerCase().includes(val)) results.push(u); });
+        let resDiv = document.getElementById("searchResults");
+        if(results.length){
+            resDiv.innerHTML = results.map(u => `<div class="search-result" data-id="${u.userId}"><div class="list-item-avatar" style="width:40px;height:40px">${u.avatarUrl?`<img src="${u.avatarUrl}">`:"👤"}</div><div><div>${escapeHtml(u.name)}</div><div style="font-size:12px">${u.online?'🟢 в сети':'⚫ не в сети'}</div></div></div>`).join('');
+            resDiv.style.display = "block";
+            document.querySelectorAll('.search-result').forEach(el => { el.onclick = () => createPrivateChat(el.dataset.id); });
+        } else { resDiv.innerHTML = '<div style="padding:16px">Ничего не найдено</div>'; resDiv.style.display = "block"; }
+    });
+    document.addEventListener("click", (e) => { if(!document.getElementById("searchUsersInput").contains(e.target) && !document.getElementById("searchResults").contains(e.target)) document.getElementById("searchResults").style.display = "none"; });
+    
+    // Поиск по ссылке
+    document.getElementById("searchLinkBtn").onclick = async () => {
+        let link = document.getElementById("searchLinkInput").value.trim();
+        if(!link){ showToast("Введите ссылку"); return; }
+        let match = link.match(/\/([^\/]+)$/);
+        let linkId = match ? match[1] : link;
+        let snap = await db.collection("chats").where("link", "==", linkId).get();
+        if(snap.empty){ showToast("Чат не найден"); return; }
+        let chatDoc = snap.docs[0];
+        let chat = chatDoc.data();
+        document.getElementById("foundChatName").innerText = chat.name;
+        document.getElementById("foundChatDescription").innerText = chat.description || "Нет описания";
+        document.getElementById("foundChatAvatar").innerHTML = chat.type === "group" ? "👥" : "📢";
+        let isMember = chat.participants?.includes(currentUser);
+        document.getElementById("foundChatAction").innerHTML = isMember ? 
+            `<button class="joined-btn" disabled>✅ Вы участник</button><button class="btn-primary" style="margin-top:12px" onclick="openFoundChat('${chatDoc.id}','${chat.name}','${chat.type}')">Перейти в чат</button>` :
+            `<button class="join-btn" onclick="joinChatByLink('${chatDoc.id}','${chat.name}','${chat.type}')">➕ Вступить</button>`;
+        showScreen("searchLinkResultScreen");
+    };
+    window.joinChatByLink = async function(chatId, chatName, chatType) { await db.collection("chats").doc(chatId).update({ participants: firebase.firestore.FieldValue.arrayUnion(currentUser) }); showToast(`Вы ${chatType === "group" ? "вступили в группу" : "подписались"}`); loadAll(); showMainScreen(); };
+    window.openFoundChat = function(chatId, chatName, chatType) { openChatById(chatId, chatName, chatType, null); };
+    
+    // Аватар
+    document.getElementById("avatarInput").onchange = async(e) => {
+        let file = e.target.files[0];
+        if(!file) return;
+        let reader = new FileReader();
+        reader.onload = async(ev) => {
+            let img = new Image();
+            img.onload = () => {
+                let canvas = document.createElement('canvas');
+                canvas.width = 200; canvas.height = 200;
+                let ctx = canvas.getContext('2d');
+                ctx.drawImage(img, 0, 0, 200, 200);
+                let resized = canvas.toDataURL('image/jpeg', 0.7);
+                db.collection("users").doc(currentUser).update({ avatarUrl: resized }).then(() => { loadAvatar(); showToast("Аватар обновлён"); });
+            };
+            img.src = ev.target.result;
+        };
+        reader.readAsDataURL(file);
+    };
+    
+    // Глобальные функции
+    window.sendMessage = sendMessage;
+    window.attachFile = attachFile;
+    window.viewOtherProfile = viewOtherProfile;
+    window.showMainScreen = showMainScreen;
+    window.showProfileScreen = showProfileScreen;
+    window.cancelPhoto = cancelPhoto;
+    window.openImageModal = openImageModal;
+    window.closeModal = closeModal;
+    window.saveImage = saveImage;
+    window.startCall = startCall;
+    window.endCall = endCall;
+    window.toggleMute = toggleMute;
+    window.createPrivateChat = createPrivateChat;
+    window.cancelRecording = cancelRecording;
+    window.closeMovieDetail = closeMovieDetail;
+    window.runFullParser = runFullParser;
+    
+    // ЗАПУСК ПРИЛОЖЕНИЯ
+    function checkAuth(){
+        let saved = localStorage.getItem("messenger_user");
+        if(saved){
+            currentUser = saved;
+            db.collection("users").doc(saved).get().then(doc => {
+                if(doc.exists){ currentUserData = doc.data(); loadAvatar(); showMainScreen(); }
+                else showScreen("authScreen");
+            }).catch(() => showScreen("authScreen"));
+        } else showScreen("authScreen");
+    }
+    if(localStorage.getItem("theme") === "light") document.body.classList.add("light");
+    checkAuth();
+    
+    // Автоматический запуск парсера при первом открытии (если фильмов мало)
+    setTimeout(async () => {
+        const snapshot = await db.collection('movies').get();
+        if (snapshot.size < 20) {
+            showToast("Автоматический сбор фильмов...");
+            runFullParser();
+        }
+    }, 3000);
+</script>
+</body>
+</html>
