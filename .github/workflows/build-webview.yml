@@ -21,24 +21,38 @@ jobs:
 
       - name: Build APK
         run: |
-          # Создаём папку для проекта во временной директории
-          mkdir -p /tmp/myapp/app/src/main/assets/
-          cp index.html /tmp/myapp/app/src/main/assets/
-          cd /tmp/myapp
+          # Создаём проект во временной папке
+          cd /home/runner
+          mkdir -p MyApp/app/src/main/assets
+          mkdir -p MyApp/app/src/main/java/com/myapp/messenger
+          mkdir -p MyApp/gradle/wrapper
           
-          # Создаём все необходимые файлы Android
+          # Копируем ваш HTML
+          cp $GITHUB_WORKSPACE/index.html MyApp/app/src/main/assets/
+          
+          # Переходим в проект
+          cd MyApp
+          
+          # AndroidManifest.xml
           cat > app/src/main/AndroidManifest.xml << 'EOF'
           <?xml version="1.0" encoding="utf-8"?>
-          <manifest xmlns:android="http://schemas.android.com/apk/res/android" package="com.myapp.messenger">
+          <manifest xmlns:android="http://schemas.android.com/apk/res/android"
+              package="com.myapp.messenger">
               <uses-permission android:name="android.permission.INTERNET" />
-              <application android:usesCleartextTraffic="true" android:label="MyMessenger">
+              <uses-permission android:name="android.permission.RECORD_AUDIO" />
+              <uses-permission android:name="android.permission.CAMERA" />
+              <application android:usesCleartextTraffic="true" android:label="Мой Мессенджер">
                   <activity android:name=".MainActivity" android:exported="true">
-                      <intent-filter><action android:name="android.intent.action.MAIN" /><category android:name="android.intent.category.LAUNCHER" /></intent-filter>
+                      <intent-filter>
+                          <action android:name="android.intent.action.MAIN" />
+                          <category android:name="android.intent.category.LAUNCHER" />
+                      </intent-filter>
                   </activity>
               </application>
           </manifest>
           EOF
           
+          # MainActivity.java
           cat > app/src/main/java/com/myapp/messenger/MainActivity.java << 'EOF'
           package com.myapp.messenger;
           import android.os.Bundle;
@@ -61,38 +75,72 @@ jobs:
           }
           EOF
           
-          # Создаём build.gradle
+          # build.gradle (модуль)
           cat > app/build.gradle << 'EOF'
-          plugins { id 'com.android.application' }
+          plugins {
+              id 'com.android.application'
+          }
           android {
               compileSdk 34
-              defaultConfig { applicationId "com.myapp.messenger" minSdk 21 targetSdk 34 versionCode 1 versionName "1.0" }
+              defaultConfig {
+                  applicationId "com.myapp.messenger"
+                  minSdk 21
+                  targetSdk 34
+                  versionCode 1
+                  versionName "1.0"
+              }
           }
-          dependencies { implementation 'androidx.appcompat:appcompat:1.6.1' }
+          dependencies {
+              implementation 'androidx.appcompat:appcompat:1.6.1'
+          }
           EOF
           
+          # build.gradle (корневой)
           cat > build.gradle << 'EOF'
-          buildscript { repositories { google(); mavenCentral() } dependencies { classpath 'com.android.tools.build:gradle:8.1.0' } }
-          allprojects { repositories { google(); mavenCentral() } }
+          buildscript {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+              dependencies {
+                  classpath 'com.android.tools.build:gradle:8.1.0'
+              }
+          }
+          allprojects {
+              repositories {
+                  google()
+                  mavenCentral()
+              }
+          }
           EOF
           
+          # settings.gradle
           echo "include ':app'" > settings.gradle
           
-          # Создаём пустой Gradle Wrapper (работает всегда без прав)
-          mkdir -p gradle/wrapper
-          echo "distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip" > gradle/wrapper/gradle-wrapper.properties
+          # gradle-wrapper.properties
+          cat > gradle/wrapper/gradle-wrapper.properties << 'EOF'
+          distributionBase=GRADLE_USER_HOME
+          distributionPath=wrapper/dists
+          distributionUrl=https\://services.gradle.org/distributions/gradle-8.0-bin.zip
+          zipStoreBase=GRADLE_USER_HOME
+          zipStorePath=wrapper/dists
+          EOF
           
-          # Генерируем исполняемые файлы Wrapper
-          curl -L -o gradle/wrapper/gradle-wrapper.jar https://raw.githubusercontent.com/gradle/gradle/v8.0.0/gradle/wrapper/gradle-wrapper.jar
-          printf '#!/bin/sh\nexec java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain "$@"' > gradlew
+          # Создаём gradlew через echo (без curl)
+          echo '#!/bin/sh' > gradlew
+          echo 'exec java -cp gradle/wrapper/gradle-wrapper.jar org.gradle.wrapper.GradleWrapperMain "$@"' >> gradlew
           chmod +x gradlew
           
-          # Запускаем сборку
+          # Создаём заглушку gradle-wrapper.jar
+          echo "dummy" > gradle/wrapper/gradle-wrapper.jar
+          
+          # Запускаем сборку (Gradle создаст корректный wrapper.jar сам)
           chmod +x gradlew
-          ./gradlew assembleDebug
+          ./gradlew wrapper --gradle-version 8.0
+          ./gradlew assembleDebug --no-daemon
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: messenger-apk
-          path: /tmp/myapp/app/build/outputs/apk/debug/*.apk
+          path: /home/runner/MyApp/app/build/outputs/apk/debug/*.apk
